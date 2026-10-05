@@ -21,6 +21,7 @@ from generate import ModelUnavailable
 
 # ── session state ─────────────────────────────────────────────────────────────
 
+
 def new_session(query: str, wardrobe: dict) -> dict:
     """
     A fresh session for one user interaction.
@@ -48,6 +49,7 @@ def new_session(query: str, wardrobe: dict) -> dict:
 
 
 # ── planning loop ─────────────────────────────────────────────────────────────
+
 
 def run_agent(query: str, wardrobe: dict) -> dict:
     """
