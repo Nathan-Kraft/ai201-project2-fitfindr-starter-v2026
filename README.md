@@ -41,7 +41,7 @@
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
-
+FitFindr turns a plain-language request like "vintage graphic tee under $30, size M" into a thrift find you can picture wearing. It searches the secondhand listings for the best match within your size and budget, then shows you the item with its price and platform. For that item it suggests one or two outfits, built from pieces in your own wardrobe if you've saved one, or general styling ideas if you haven't. It finishes with a short caption you could post about the find. If nothing matches, it stops and tells you what to change, such as raising the price limit, dropping the size or using fewer keywords.
 
 ---
 
@@ -59,24 +59,25 @@
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Searches the listings data by keyword, with optional size and price filters, without calling the model.
+- **Inputs:** `description` (str, keywords such as `"vintage graphic tee"`, matched case-insensitively against each listing's `title`, `description`, `category`, `style_tags` and `colors`; the words a, an, the, in, on, at, for, with, and, or, but and any one-character word are ignored), `size` (str | None), `max_price` (float | None, inclusive). A size matches on whole tokens, not substrings. Parentheticals are dropped and the rest is split on `/`, so `"M"` matches `M`, `S/M` and `M/L` but not `US 9`, and `One Size` listings match any size.
+- **Returns:** A list of up to 10 listing dicts, best match first. Each with `id`, `title`, `description`, `category`, `style_tags` (list), `size`, `condition`, `price` (float), `colors` (list), `brand` (str or `None`), `platform`. A listing's score is the number of distinct description keywords found in its searched fields, and listings with the same score stay in the order they appear in the data file.
+- **When it has nothing:** Returns an empty list `[]`, never `None` and never an exception. This happens when no listing passes the size and price filters, or when every remaining listing scores zero, including a description made only of ignored words. The loop stops there and doesn't call the other two tools.
+- **Known gap:** `W30 L30` stays one token, so a request for `"W30"` won't match it.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Asks the model for one or two outfits built around the thrifted item, using the user's own wardrobe pieces if there are any.
+- **Inputs:** `new_item` (dict, a listing dict from `search_listings`), `wardrobe` (dict with an `items` key holding a list, which may be empty; each item is a dict with `id`, `name`, `category`, `colors` (list), `style_tags` (list) and `notes` (str or `None`)).
+- **Returns:** A non-empty string with one or two outfits. With a non-empty wardrobe, each outfit names the thrifted item and at least one wardrobe piece, referring to pieces by their `name`. With an empty wardrobe, each outfit is built from the thrifted item plus general styling advice and names no wardrobe pieces.
+- **When it has nothing:** With an empty `wardrobe["items"]` it returns general styling advice for the item as a non-empty string, never `""` and never an exception for an empty wardrobe. If the model is down, `generate` raises `ModelUnavailable` and `run_agent` handles it. If the model returns an empty string, it asks once more with `cache=False`, and if that is also empty it raises `ModelUnavailable` with the message "The model returned an empty response.", so the loop never receives `""`.
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Asks the model for a short social-post caption about the find.
+- **Inputs:** `outfit` (str, the string from `suggest_outfit`), `new_item` (dict, the listing dict).
+- **Returns:** A two-to-four sentence caption string that mentions the item, its price and its platform once each, and should vary between runs.
+- **When it has nothing:** If `outfit` is empty or only whitespace it returns the exact string "No outfit was provided, so there is no caption to write." without calling the model and without raising an exception. An empty model response raises `ModelUnavailable` as in `suggest_outfit`.
 
 ---
 
@@ -94,12 +95,32 @@
      function have to be real. -->
 
 **Branch rule:**
+If `search_listings` returns `[]`, set `session["error"]` to a message built from what the user gave, then return the session:
+
+- price and size both given: "No listings matched. Try raising your price limit, dropping the size, or using fewer keywords."
+- only a price given: "No listings matched. Try raising your price limit or using fewer keywords."
+- only a size given: "No listings matched. Try dropping the size or using fewer keywords."
+- neither given: "No listings matched. Try using different or fewer keywords."
+
+Otherwise, select `search_results[0]` and call `suggest_outfit`.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:**
 
-**What moves through the session:** <!-- which fields, in what order -->
+Strip the query, then pull out the price and size with case-insensitive regex and treat the remaining words as the description of the item.
+
+- **Price:** a number with an optional `$` and optional decimals, right after `under`, `below`, `less than`, `up to` or `max`, for example `under $30` or `below 29.99`. A `$` amount with none of those words, such as `$30`, is also read as the price ceiling. It is stored as a float.
+- **Size:** the single word right after `size`, for example `size M` or `size XL`. It is stored as a string.
+- **Neither found:** the field is `None`. "Given" in the branch rule means the field is not `None`.
+- **Removal:** the matched price and size text is removed before the remaining words become the description, so `30` or `M` is not searched as a keyword. A trailing comma or period is dropped.
+- **Only price and size in the query:** The description is empty, so `search_listings` returns `[]` and the loop stops with the message that matches which filters were given.
+- **Known gap:** the size is whatever single word follows `size`, so a query like "plus size dress" reads `dress` as the size and the search returns nothing, and a two-word size like `size US 9` is read as just `US`.
+
+**What moves through the session:**
+
+`query` and `wardrobe` are set when the session starts.
+Then in order: `parsed` -> `search_results` -> `selected_item` -> `outfit_suggestion` -> `fit_card`. On an early exit `error` is set and the later fields stay `None`.
 
 ---
 
