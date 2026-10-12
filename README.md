@@ -142,18 +142,22 @@ $ python app.py ask '...'
 **The three tools, tested one at a time**
 
 ```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
-
+$ python -c "from tools import search_listings; print([(r['id'], r['title'], r['price']) for r in search_listings('graphic tee', max_price=30)])"
+[('lst_002', 'Y2K Baby Tee — Butterfly Print', 18.0), ('lst_006', 'Graphic Tee — 2003 Tour Bootleg Style', 24.0), ('lst_017', 'Mesh Long-Sleeve Top — Black', 15.0), ('lst_033', 'Vintage Band Tee — Faded Grey', 19.0), ('lst_011', 'Low-Rise Cargo Pants — Khaki', 27.0), ('lst_015', 'Vintage Graphic Hoodie — Faded Black', 26.0)]
 ```
 
-```
-$ python -c "from tools import suggest_outfit; ..."
+Note: the long dashes in the titles are part of the real output. They come from the listing titles in the data file and are printed as is.
 
 ```
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(' '.join(suggest_outfit(load_listings()[1], get_example_wardrobe()).split()))"
+Outfit 1: - Y2K Baby Tee — Butterfly Print - Baggy straight-leg jeans, dark wash - Chunky white sneakers - Black crossbody bag Outfit 2: - Y2K Baby Tee — Butterfly Print - Wide-leg khaki trousers - Vintage black denim jacket - Chunky white sneakers
+```
+
+Note: the long dash in the item name is part of the real output. It comes from the listing title in the data file and is printed as is.
 
 ```
-$ python -c "from tools import create_fit_card; ..."
-
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(' '.join(create_fit_card('baby tee with baggy dark-wash jeans and white platform sneakers', load_listings()[1]).split()))"
+Found the ultimate Y2K baby tee with the cutest glitter butterfly print for just $18 over on Depop. I'm totally living for the early 2000s mall-rat energy of this piece. Just styled it with some baggy dark-wash denim and white platform sneakers for maximum Bratz doll vibes. Grab it before I change my mind and keep it for myself!
 ```
 
 ---

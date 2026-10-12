@@ -23,7 +23,7 @@ the description has to say what is *in* the list.
 import re
 
 import config  # noqa: F401 — you'll use this in search_listings
-from generate import generate
+from generate import generate, ModelUnavailable
 from utils.data_loader import load_listings
 
 
@@ -102,8 +102,42 @@ def search_listings(
     Test it from a terminal before you move on:
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
     """
-    # TODO: replace this with your implementation
-    return []
+    keywords = _keywords(description)
+    if not keywords:
+        return []
+
+    scored = []
+    for listing in load_listings():
+        if max_price is not None and listing["price"] > max_price:
+            continue
+        if size is not None and not _size_matches(size, listing["size"]):
+            continue
+
+        searched = " ".join([
+            listing["title"],
+            listing["description"],
+            listing["category"],
+            " ".join(listing["style_tags"]),
+            " ".join(listing["colors"]),
+        ])
+        score = len(keywords & _keywords(searched))
+        if score > 0:
+            scored.append((score, listing))
+
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+    return [listing for _, listing in scored[:config.SEARCH_RESULT_LIMIT]]
+
+
+# ── Shared helper for the two model tools ─────────────────────────────────────
+
+def _generate_nonempty(prompt: str, system: str) -> str:
+    """Call the model, retry once with the cache off, raise if still empty."""
+    text = generate(prompt, system=system)
+    if not text.strip():
+        text = generate(prompt, system=system, cache=False)
+    if not text.strip():
+        raise ModelUnavailable("The model returned an empty response.")
+    return text
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
@@ -136,8 +170,44 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    item_text = (
+        f"{new_item['title']} ({new_item['category']}), size {new_item['size']}, "
+        f"{', '.join(new_item['colors'])}; style: {', '.join(new_item['style_tags'])}. "
+        f"{new_item['description']}"
+    )
+    pieces = wardrobe.get("items") or []
+
+    if pieces:
+        lines = []
+        for p in pieces:
+            line = (
+                f"- {p['name']} ({p['category']}; {', '.join(p['colors'])}; "
+                f"{', '.join(p['style_tags'])})"
+            )
+            if p.get("notes"):
+                line += f" - {p['notes']}"
+            lines.append(line)
+        prompt = (
+            f"I am thinking of buying this secondhand item:\n{item_text}\n\n"
+            f"Here is my wardrobe:\n" + "\n".join(lines) + "\n\n"
+            "Suggest one or two outfits built around the new item. In each outfit, "
+            "name the new item and at least one piece from my wardrobe, using the "
+            "wardrobe piece names exactly as written above."
+        )
+    else:
+        prompt = (
+            f"I am thinking of buying this secondhand item:\n{item_text}\n\n"
+            "I have not told you what is in my wardrobe. Suggest one or two outfits "
+            "built around the new item, using general styling advice. Start each "
+            "outfit by naming the new item, then describe the kinds of pieces that "
+            "would go with it. Do not claim I own anything in particular."
+        )
+    system = (
+        "You are a thrift styling assistant. Reply with the outfits only, in plain "
+        "text, no preamble. Never reply with an empty message."
+    )
+
+    return _generate_nonempty(prompt, system)
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
@@ -176,5 +246,21 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    if not (outfit or "").strip():
+        return "No outfit was provided, so there is no caption to write."
+
+    prompt = (
+        "Write a short social-media caption for a thrift find.\n\n"
+        f"Item: {new_item['title']}\n"
+        f"Price: ${new_item['price']:.2f}\n"
+        f"Platform: {new_item['platform']}\n\n"
+        f"Outfit idea:\n{outfit}\n\n"
+        "Write two to four sentences that read like a real post, not a product "
+        "description. Mention the item, its price and its platform once each, and be "
+        "specific about the vibe. Reply with the caption only."
+    )
+    system = (
+        "You write casual, specific thrift-haul captions. Never reply with an "
+        "empty message."
+    )
+    return _generate_nonempty(prompt, system)
