@@ -1,6 +1,7 @@
 # API keys — never commit these
 .env
 
+.session_summary/
 agent_test.py
 # Python
 __pycache__/

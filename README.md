@@ -60,7 +60,7 @@ FitFindr turns a plain-language request like "vintage graphic tee under $30, siz
 ### `search_listings`
 
 - **What it does:** Searches the listings data by keyword, with optional size and price filters, without calling the model.
-- **Inputs:** `description` (str, keywords such as `"vintage graphic tee"`, matched case-insensitively against each listing's `title`, `description`, `category`, `style_tags` and `colors`; the words a, an, the, in, on, at, for, with, and, or, but and any one-character word are ignored), `size` (str | None), `max_price` (float | None, inclusive). A size matches on whole tokens, not substrings. Parentheticals are dropped and the rest is split on `/`, so `"M"` matches `M`, `S/M` and `M/L` but not `US 9`, and `One Size` listings match any size.
+- **Inputs:** `description` (str | None, keywords such as `"vintage graphic tee"`, or `None` for no keywords, which returns `[]`; matched case-insensitively against each listing's `title`, `description`, `category`, `style_tags` and `colors`; the words a, an, the, in, on, at, for, with, and, or, but and any one-character word are ignored), `size` (str | None), `max_price` (float | None, inclusive). A size matches on whole tokens, not substrings. Parentheticals are dropped and the rest is split on `/`, so `"M"` matches `M`, `S/M` and `M/L` but not `US 9`, and `One Size` listings match any size.
 - **Returns:** A list of up to 10 listing dicts, best match first. Each with `id`, `title`, `description`, `category`, `style_tags` (list), `size`, `condition`, `price` (float), `colors` (list), `brand` (str or `None`), `platform`. A listing's score is the number of distinct description keywords found in its searched fields, and listings with the same score stay in the order they appear in the data file.
 - **When it has nothing:** Returns an empty list `[]`, never `None` and never an exception. This happens when no listing passes the size and price filters, or when every remaining listing scores zero, including a description made only of ignored words. The loop stops there and doesn't call the other two tools.
 - **Known gap:** `W30 L30` stays one token, so a request for `"W30"` won't match it.
@@ -113,8 +113,9 @@ Strip the query, then pull out the price and size with case-insensitive regex an
 - **Price:** a number with an optional `$` and optional decimals, right after `under`, `below`, `less than`, `up to` or `max`, for example `under $30` or `below 29.99`. A `$` amount with none of those words, such as `$30`, is also read as the price ceiling. It is stored as a float.
 - **Size:** the single word right after `size`, for example `size M` or `size XL`. It is stored as a string.
 - **Neither found:** the field is `None`. "Given" in the branch rule means the field is not `None`.
+- **Shape of `parsed`:** always `description`, `size` and `max_price`. All three keys are always present, and a value the user did not give is `None`, never a missing key. For example, `{"description": None, "size": "M", "max_price": 40.0}`.
 - **Removal:** the matched price and size text is removed before the remaining words become the description, so `30` or `M` is not searched as a keyword. A trailing comma or period is dropped.
-- **Only price and size in the query:** The description is empty, so `search_listings` returns `[]` and the loop stops with the message that matches which filters were given.
+- **Only price and size in the query:** The description is `None`, so `search_listings` returns `[]` and the loop stops with the message that matches which filters were given.
 - **Known gap:** the size is whatever single word follows `size`, so a query like "plus size dress" reads `dress` as the size and the search returns nothing, and a two-word size like `size US 9` is read as just `US`.
 
 **What moves through the session:**
