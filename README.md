@@ -194,15 +194,15 @@ Found the ultimate Y2K baby tee with the cutest glitter butterfly print for just
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked Claude to build `suggest_outfit` to match my README spec, including a branch for an empty wardrobe that gives general styling advice. My spec also said each outfit is built from the thrifted item.
+- *What came back:* The code worked, and with an empty wardrobe it returned styling advice. Although when I read the live output, the advice never mentioned the thrifted item at all, it was generic. That broke the README line saying each outfit is built from the thrifted item.
+- *What I changed:* I had the empty-wardrobe prompt tightened so it tells the model to start each outfit by naming the new item, and still not to claim I own anything. A later live run did name the item. That was one run only, so I did not count it as proof, and I plan to measure this properly in Unit 4.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* After the loop was built I asked whether I should write the unit tests for the functions in `agent.py`. Claude said yes and drafted a `test_agent.py` with tests for the query parser, the four error messages and the branch, using fake tools so no model quota is used.
+- *What came back:* Claude's first suggestion was to leave `test_agent.py` in the project root next to `test_tools.py`. Its reasons were that `python test_agent.py` would still find the `agent` and `tools` imports from the root, that pytest is not in requirements.txt, and that moving `test_tools.py` would change a file from the last milestone.
+- *What I changed:* I believed that a separate tests folder is standard practice. So I had both files moved into tests/. That meant adding one line at the top of each file so that `python tests/test_agent.py` and `python tests/test_tools.py` still find the project's modules. I then ran both test files from their new location to check they still passed. I also asked Claude to add docstrings to every test and helper function.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 

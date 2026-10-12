@@ -35,14 +35,16 @@ tool calls and return a fit card, in at least 4 out of 5 tries.
 
 ## 2. An impossible query stops before the second tool
 
-Given a query that matches no listings, the agent should stop before calling
-`suggest_outfit` and return a message naming what to change, in 5 out of 5 tries.
+Given a query that matches no listings, such as "ballgown under $5, size XXS", the agent
+should stop before calling `suggest_outfit` and return an error message that contains the
+word "price" when the query had a price limit, the word "size" when it had a size, and
+"keywords" in every case, in 5 out of 5 tries.
 
 **Why this target:**
 <!-- Why is 5 of 5 reasonable here when criterion 1 isn't? What's different
      about this path? -->
 
-When `search_listings` returns `[]`, the loop sets `session["error"]` and returns before `suggest_outfit` is called. An empty list and the choice of message depend only on the data and the parsed query, so the result is the same every time. A miss here would mean a bug in my code, not variation, so there is no reason to allow one in five. The error message is chosen from which filters the user gave, so it always names something to change.
+When `search_listings` returns `[]`, the loop sets `session["error"]` and returns before `suggest_outfit` is called. An empty list and the choice of message depend only on the data and the parsed query, so the result is the same every time. A miss here would mean a bug in my code, not variation, so there is no reason to allow one in five. The error message is chosen from which filters the user gave, so it always names something to change. Checking for the words "price", "size" and "keywords" makes that a string match, so no one has to judge whether the message is helpful.
 
 ---
 
@@ -58,7 +60,7 @@ When `search_listings` returns `[]`, the loop sets `session["error"]` and return
      compares session["selected_item"] against what actually reached
      suggest_outfit is the shape you're after. -->
 
-Given a user query with at least one matching listing, `session["selected_item"]["id"]` should equal `search_results[0]["id"]` and the `id` of the `new_item` passed to `suggest_outfit`, in 5 out of 5 tries.
+Given a user query with at least one matching listing, `session["selected_item"]["id"]` should equal `search_results[0]["id"]` and the `id` of the `new_item` passed to `suggest_outfit`, in 5 out of 5 tries. The third id is observed by replacing `suggest_outfit` with a stand-in that records the `new_item` it receives.
 
 **Why this target:**
 
