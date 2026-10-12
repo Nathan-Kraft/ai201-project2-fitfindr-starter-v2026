@@ -106,6 +106,8 @@ Otherwise, select `search_results[0]` and call `suggest_outfit`.
 
 **Where it lives:** `agent.py::run_agent`
 
+**One pass, no repeat:** `run_agent` goes through the steps once from top to bottom, and the only branch is the empty-search check. It never returns to an earlier step, so it has no `while` loop. It calls `trace.check_iterations(1)` once as the stop condition, so a loop added later would already be guarded.
+
 **How the query is parsed:**
 
 Strip the query, then pull out the price and size with case-insensitive regex and treat the remaining words as the description of the item.
@@ -135,9 +137,28 @@ Then in order: `parsed` -> `search_results` -> `selected_item` -> `outfit_sugges
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30, size M'
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
 
+  Outfit:   Outfit 1:
+- Y2K Baby Tee — Butterfly Print
+- Baggy straight-leg jeans, dark wash
+- Chunky white sneakers
+- Black crossbody bag
+
+Outfit 2:
+- Y2K Baby Tee — Butterfly Print
+- Wide-leg khaki trousers
+- Vintage black denim jacket
+- Chunky white sneakers
+- Brown leather belt
+
+  Fit card: Living out my early 2000s pop star dreams in this butterfly print Y2K baby tee I just scored on Depop for $18. It gives major Lizzie McGuire off-duty energy, whether you throw it on with baggy dark-wash denim or dress it up a bit with wide-leg khakis.
+
+2 model calls this session, 550 prompt + 152 output tokens
 ```
+
+Note: the long dashes in the item title are part of the real output. They come from the listing title in the data file and are printed as is. This run was made with the cache off, so both model answers are fresh. One edit was made by hand: the last sentence of the fit card, "Seriously obsessed with how buttery soft the cotton is!", was removed because the listing says nothing about cotton or softness, so the model made it up. The rest is the real output.
 
 **The three tools, tested one at a time**
 
