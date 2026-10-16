@@ -68,21 +68,25 @@ mcp = FastMCP("fitfindr", log_level="WARNING")
 
 
 # ── TODO: uncomment and fill this in ──────────────────────────────────────────
-#
-# @mcp.tool()
-# def search_listings(
-#     description: str,
-#     size: str | None = None,
-#     max_price: float | None = None,
-# ) -> list[dict]:
-#     """
-#     <-- YOUR DESCRIPTION GOES HERE.
-#
-#         One or two sentences. What does this tool do, what does it need, and
-#         what does it give back when it finds nothing? Written for a reader
-#         who cannot see the code.
-#     """
-#     return _search_listings_impl(description, size, max_price)
+
+@mcp.tool()
+def search_listings(
+    description: str | None = None,
+    size: str | None = None,
+    max_price: float | None = None,
+) -> list[dict]:
+    """
+    Searches a fixed catalog of secondhand clothing listings and returns the ones that match a free-text description, optionally filtered by size and maximum price.
+    Returns an empty list (not an error) when nothing matches.
+
+    description: free text, e.g. "vintage graphic tee". Split into keywords and matched, ignoring case, against each listing's title, description, category, style tags and colors. A listing must share at least one keyword to be returned. Brand is not searched. Common words (a, the, for, with, and so on) and one-character words are ignored. If it is null, empty, or contains only ignored words, the result is an empty list.
+    size: optional string. Matched as a whole size token, ignoring case, so "M" matches "M", "S/M" and "M/L" but not "XL" or "US 9". Listings sized "One Size" match any request. Omit to skip size filtering.
+    max_price: optional number, in dollars, inclusive. Omit to skip price filtering.
+
+    Returns a list of at most 10 listing dicts, best keyword match first (ties stay in catalog order).
+    Each dict has: id, title, description, category, style_tags (list of str), size, condition, price (float, dollars), colors (list of str), brand (str or null, null for most listings) and platform.
+    """
+    return _search_listings_impl(description, size, max_price)
 #
 # ──────────────────────────────────────────────────────────────────────────────
 #

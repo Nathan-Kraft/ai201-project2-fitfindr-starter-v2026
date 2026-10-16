@@ -17,8 +17,9 @@ import re
 
 import config
 import trace
-from tools import search_listings, suggest_outfit, create_fit_card
+from tools import suggest_outfit, create_fit_card
 from generate import ModelUnavailable
+from mcp_client import call_tool
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -120,38 +121,59 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     # step reads it back out.
     session = new_session(query, wardrobe)
 
-    # Stop condition. The loop is one pass, so the count is always 1, but the
-    # check is kept in case a repeat is added later (see trace.py).
-    trace.check_iterations(1)
+    try:
+        # Stop condition. The loop is one pass, so the count is always 1, but the
+        # check is kept in case a repeat is added later (see trace.py).
+        trace.start_trace()
+        trace.check_iterations(1)
 
-    # Parse the query into a description, size and max_price (regex only, see
-    # _parse_query). All three keys are always present, None if not given.
-    session["parsed"] = _parse_query(session["query"])
+        # Parse the query into a description, size and max_price (regex only, see
+        # _parse_query). All three keys are always present, None if not given.
+        session["parsed"] = _parse_query(session["query"])
+        trace.step("parse_query", inputs=session["query"], returned=str(session["parsed"]))
 
-    # Search with what was parsed.
-    session["search_results"] = search_listings(
-        session["parsed"]["description"],
-        size=session["parsed"]["size"],
-        max_price=session["parsed"]["max_price"],
-    )
+        # Search with what was parsed.
+        session["search_results"] = call_tool("search_listings", {
+            "description": session["parsed"]["description"],
+            "size": session["parsed"]["size"],
+            "max_price": session["parsed"]["max_price"],
+        })
+        trace.step("search_listings (via MCP)", inputs=str(session["parsed"]),
+                   returned=session["search_results"],
+                   note=f"{len(session['search_results'])} match(es)")
 
-    # THE BRANCH. If nothing came back, say what the user could change (the
-    # message depends on which filters they gave) and return. suggest_outfit
-    # and create_fit_card are not called with nothing.
-    if not session["search_results"]:
-        session["error"] = _no_results_message(session["parsed"])
-        return session
+        # THE BRANCH. If nothing came back, say what the user could change (the
+        # message depends on which filters they gave) and return. suggest_outfit
+        # and create_fit_card are not called with nothing.
+        if not session["search_results"]:
+            session["error"] = _no_results_message(session["parsed"])
+            trace.step("branch", note=f"search returned []: {session['error']}")
+            return session
 
-    # Choose an item: the best match, which is the first result.
-    session["selected_item"] = session["search_results"][0]
+        # Choose an item: the best match, which is the first result.
+        session["selected_item"] = session["search_results"][0]
+        trace.step("select_item", returned=session["selected_item"])
 
-    # Suggest outfits for the chosen item, from the user's wardrobe.
-    session["outfit_suggestion"] = suggest_outfit(
-        session["selected_item"], session["wardrobe"])
+        # Suggest outfits for the chosen item, from the user's wardrobe.
+        session["outfit_suggestion"] = suggest_outfit(
+            session["selected_item"], session["wardrobe"])
+        trace.step("suggest_outfit", inputs=session["selected_item"],
+                   returned=session["outfit_suggestion"])
 
-    # Write the caption from the outfit and the chosen item.
-    session["fit_card"] = create_fit_card(
-        session["outfit_suggestion"], session["selected_item"])
+        # Write the caption from the outfit and the chosen item.
+        session["fit_card"] = create_fit_card(
+            session["outfit_suggestion"], session["selected_item"])
+        trace.step("create_fit_card", inputs=session["outfit_suggestion"],
+                   returned=session["fit_card"])
+
+    except ModelUnavailable as exc:
+        session["error"] = (
+            f"The model couldn't be reached, so the outfit and caption steps "
+            f"didn't run. The search worked. "
+            f"{len(session['search_results'])} listing(s) were found. "
+            f"Check GEMINI_API_KEY in your .env, then run the same query "
+            f"again.\nWhat the service said: {exc}"
+        )
 
     return session
 
