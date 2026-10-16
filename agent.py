@@ -167,12 +167,12 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                    returned=session["fit_card"])
 
     except ModelUnavailable as exc:
+        found = len(session["search_results"])
         session["error"] = (
             f"The model couldn't be reached, so the outfit and caption steps "
-            f"didn't run. The search worked. "
-            f"{len(session['search_results'])} listing(s) were found. "
-            f"Check GEMINI_API_KEY in your .env, then run the same query "
-            f"again.\nWhat the service said: {exc}"
+            f"didn't run. The search worked and found {found} "
+            f"listing{'s' if found != 1 else ''}. Try the same query again "
+            f"in a moment.\nWhat the service said: {exc}"
         )
 
     return session
