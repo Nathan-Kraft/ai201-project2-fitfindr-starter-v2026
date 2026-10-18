@@ -316,13 +316,30 @@ The long dashes, the arrow and the curly apostrophes in these blocks come from t
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | A matching query completes all three tools | 4 of 5 | MET | 5 passes in 5 tries. 5 is at least the 4 the target asks for. |
+| 2 | An impossible query stops before the second tool | 5 of 5 | MET | 5 passes in 5 tries on each of the four queries (20 of 20). The trace ended at the branch every time and the message named the right words. |
+| 3 | The selected item is the item suggest_outfit receives | 5 of 5 | MET | 5 passes in 5 tries. The selected item, search_results[0] and the item suggest_outfit received were all lst_007 every time. |
+| 4 | The fit card has the price, platform and item in 280 characters | 4 of 5 | MISSED | 1 pass in 5 tries, against a target of 4. Tries 2 to 5 failed: 4 were over 280 characters and 3 wrote "$18" instead of "$18.00". |
+| 5 | The parser returns exactly description, size and max_price | 5 of 5 | MET | 5 passes in 5 tries. The same three keys came back every time, with size None. |
 
 **Diagnoses**
+
+Criterion 4 is the only miss (1 of 5 against a target of 4).
+
+**Where it failed:** the model's output, in the third step, `create_fit_card` (tools.py). It is not the tool's code, the loop's branch, or the session.
+
+- The tool passed the right price. The prompt line is `f"Price: ${new_item['price']:.2f}"`, so the model was shown "$18.00" every time.
+- The branch was not involved. Criterion 4 only runs on a matching query, and the loop went on to the third tool every time.
+- The session was not involved. The selected item was the same listing (lst_002) in every try, and criterion 3 passed on its ids.
+
+**Mechanism:** the prompt gives no rule for two things the criterion measures.
+
+1. **Length.** It asks for "two to four sentences" with no character limit. Tries 2 to 5 came out at 309, 315, 332 and 361 characters. Only try 1 (273) was under 280.
+2. **Price format.** It says to mention the price "once" but not to copy it exactly. The model wrote "$18" in tries 2, 3 and 5. I tested this separately, outside the Run Log - Before. The outfit text has no dollar sign, so the model was not copying "$18" from it. With the current prompt, "$18.00" appeared in 2 of 10 tries. With one added sentence telling it to write the price exactly as shown, it appeared in 10 of 10. That sentence did not fix length, which stayed over 280 in 5 of 10 cards.
+
+**Pattern:** this is one problem, not two. The prompt says what tone it wants and nothing about the format it is measured on. Platform and a title word, which it does ask for, passed 5 of 5.
+
+**Were the targets low?** Criteria 2, 3 and 5 are at 5 of 5, the strictest possible. They test code with no model call, so passing every time is expected. Criterion 1 is the one I would tighten. Its target is 4 of 5, it passed 5 of 5 in both runs, and it only checks that all three tools ran on one query, so a failed try would still have been MET. I would hold it to 5 of 5. I left criteria.md as written, because it only allows a revision when a criterion could not be measured.
 
 
 
