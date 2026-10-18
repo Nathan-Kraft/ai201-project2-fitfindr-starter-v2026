@@ -411,21 +411,25 @@ In mcp_server.py I registered search_listings with the inputs from the Tool Inve
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** One sentence added to the prompt in tools.py::create_fit_card: "Write the price exactly as shown above, with a dollar sign and two decimals." Nothing else changed. The prompt, the system prompt, the temperature and the criteria are the same as in Run Log - Before.
 
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** The price-format half of the criterion 4 miss. The diagnosis found that the prompt said to mention the price but not how to write it, and the model wrote "$18" in tries 2, 3 and 5 of Run Log - Before. My separate 10-try check had shown this sentence took "$18.00" from 2 of 10 to 10 of 10. It was not meant to fix length.
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The selected item is the item suggest_outfit receives | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. The fit card has the price, platform and item in 280 characters | 4 of 5 | PASS | PASS | FAIL | FAIL | PASS | MISSED (3/5) |
+| 5. The parser returns exactly description, size and max_price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Did it help, and how do I know:**
+Criterion 2 row: same as in Run Log - Before. All four queries passed in all five tries, 20 of 20.
+
+Run from results/run_2026-10-18_0204_after.md with `python run_eval.py --label after`, caching off, temperature 0.9.
+
+**Did it help, and how do I know:** It helped, but not enough to meet the target. Criterion 4 went from 1 of 5 to 3 of 5, still short of 4 of 5, so it is still MISSED. The price half is fixed: "$18.00" appeared in 5 of 5 cards, against 2 of 5 before. The remaining failures are length only. Tries 3 and 4 came out at 341 and 330 characters, over the 280 limit. Before, all four failing tries were over the limit and three of them also had the wrong price format. The prompt still has no character limit, so length is the half of the diagnosis that this change did not touch. The other four criteria did not move, which is what I expected because the change is inside create_fit_card only.
 
 <!-- If it made things worse, say that. Honestly reported, that earns full
      credit and is more interesting than one that worked. -->
