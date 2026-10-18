@@ -50,12 +50,28 @@ def run_once(scenario, use_trace=True):
     if use_trace:
         trace_module.start_trace()
 
+    # Stand-in for suggest_outfit that records the item it was handed, so the
+    # log can show the id that actually reached the second tool (criterion 3).
+    # It passes the call straight through, so the outfit text is unchanged.
+    import agent as agent_module
+
+    received = []
+    real_suggest_outfit = agent_module.suggest_outfit
+
+    def recording_suggest_outfit(*args, **kwargs):
+        received.append((args[0] if args else kwargs.get("new_item")) or {})
+        return real_suggest_outfit(*args, **kwargs)
+
     record = {"error": None, "session": None, "trace": "", "crashed": None}
+    agent_module.suggest_outfit = recording_suggest_outfit
     try:
         record["session"] = run_agent(scenario["query"], wardrobe)
     except Exception as exc:  # noqa: BLE001 — a crash is a result worth logging
         record["crashed"] = f"{type(exc).__name__}: {exc}"
         record["traceback"] = traceback.format_exc()
+    finally:
+        agent_module.suggest_outfit = real_suggest_outfit
+    record["received_id"] = received[0].get("id") if received else None
 
     if use_trace:
         record["trace"] = trace_module.get_trace()
@@ -190,6 +206,9 @@ def write_report(rows, args):
                 f"- stopped early: {'yes — ' + str(session.get('error')) if session.get('error') else 'no'}",
                 f"- selected_item: {item.get('title', '(none)')}"
                 + (f" (${item.get('price')}, {item.get('platform')})" if item else ""),
+                f"- selected_item id: {item.get('id', '(none)')}",
+                f"- search_results[0] id: {((session.get('search_results') or [{}])[0]).get('id', '(none)')}",
+                f"- id received by suggest_outfit: {record.get('received_id', '(none)')}",
                 f"- search_results: {len(session.get('search_results') or [])}",
                 "",
             ]

@@ -224,18 +224,75 @@ Found the ultimate Y2K baby tee with the cutest glitter butterfly print for just
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The selected item is the item suggest_outfit receives | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. The fit card has the price, platform and item in 280 characters | 4 of 5 | PASS | FAIL | FAIL | FAIL | FAIL | MISSED (1/5) |
+| 5. The parser returns exactly description, size and max_price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+Criterion 2 row: each try cell covers four queries (price and size, price only, size only, keywords only). A cell is PASS only if all four queries passed in that try number. All four did in all five tries, so that is 20 of 20 individual tries.
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
 
-```
+Criterion 1, try 1 of "matching query completes". Produced by agent.py::run_agent (the trace.step calls) and tools.py::create_fit_card (the fit card), written to the log by run_eval.py::write_report. Query: vintage graphic tee under $30.
 
 ```
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+      →    10 match(es)
+[3] select_item
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+[4] suggest_outfit
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      out: Outfit 1: - Y2K Baby Tee — Butterfly Print - Baggy straight-leg jeans, dark wash - Vintage black denim jacket …
+[5] create_fit_card
+      in:  Outfit 1: - Y2K Baby Tee — Butterfly Print - Baggy straight-leg jeans, dark wash - Vintage black denim jacket …
+      out: Finally scored the ultimate Y2K butterfly baby tee for just $18 on Depop! It gives major 2000s pop star off-du…
+```
+
+Criterion 2, try 1 of "impossible query stops early". Produced by agent.py::run_agent (the branch) with the message from agent.py::_no_results_message. Query: designer ballgown size XXS under $5. The trace has no suggest_outfit step.
+
+```
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+      →    0 match(es)
+[3] branch
+      →    search returned []: No listings matched. Try raising your price limit, dropping the size, or using fewer keywords.
+```
+
+Criterion 3, try 1 of "selected item reaches suggest_outfit". The first two ids are from agent.py::run_agent (session["selected_item"] and session["search_results"][0]). The third is recorded by the stand-in in run_eval.py::run_once and printed by run_eval.py::write_report. Query: denim jacket under $50.
+
+```
+- selected_item: Denim Jacket — Light Wash, Cropped ($42.0, poshmark)
+- selected_item id: lst_007
+- search_results[0] id: lst_007
+- id received by suggest_outfit: lst_007
+```
+
+Criterion 4, try 2 of "fit card for the same item" (a FAIL). Produced by tools.py::create_fit_card. Query: vintage graphic tee under $30. This card is 309 characters, over the 280 limit, and writes "$18", not "$18.00". Try 1 of the same scenario passed all four checks.
+
+```
+Channeling serious early 2000s mall-rat energy with this butterfly baby tee. Grabbed it on Depop for just $18, and honestly, it’s giving the ultimate retro streetwear vibe whether you style it with baggy dark-wash denim or chunky khaki trousers. Don’t sleep on this one—it’s about to be your go-to all summer.
+```
+
+Criterion 5, try 1 of "parser: price, no size". Produced by agent.py::_parse_query, shown in the parse_query trace step from agent.py::run_agent. Query: levi's jeans under $40.
+
+```
+[1] parse_query
+      in:  levi's jeans under $40
+      out: {'description': "levi's jeans", 'size': None, 'max_price': 40.0}
+```
+
+The long dashes, the arrow and the curly apostrophes in these blocks come from the program output and the log. 
 
 ---
 
