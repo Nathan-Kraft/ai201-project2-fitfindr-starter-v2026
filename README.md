@@ -197,12 +197,25 @@ Found the ultimate Y2K baby tee with the cutest glitter butterfly print for just
 - *What I asked for:* I asked Claude to build `suggest_outfit` to match my README spec, including a branch for an empty wardrobe that gives general styling advice. My spec also said each outfit is built from the thrifted item.
 - *What came back:* The code worked, and with an empty wardrobe it returned styling advice. Although when I read the live output, the advice never mentioned the thrifted item at all, it was generic. That broke the README line saying each outfit is built from the thrifted item.
 - *What I changed:* I had the empty-wardrobe prompt tightened so it tells the model to start each outfit by naming the new item, and still not to claim I own anything. A later live run did name the item. That was one run only, so I did not count it as proof, and I plan to measure this properly in Unit 4.
+- *Unit 4 follow-up:* The empty-wardrobe scenario ran as a diagnostic in both run logs, five tries each. In all 10 tries (20 outfits) the outfit names the denim jacket. I checked this by searching the logs for the item's name, which is a rough check. It is not one of the five scored criteria, and 10 tries is not proof it will always hold.
 
 **Moment 2**
 
 - *What I asked for:* After the loop was built I asked whether I should write the unit tests for the functions in `agent.py`. Claude said yes and drafted a `test_agent.py` with tests for the query parser, the four error messages and the branch, using fake tools so no model quota is used.
 - *What came back:* Claude's first suggestion was to leave `test_agent.py` in the project root next to `test_tools.py`. Its reasons were that `python test_agent.py` would still find the `agent` and `tools` imports from the root, that pytest is not in requirements.txt, and that moving `test_tools.py` would change a file from the last milestone.
 - *What I changed:* I believed that a separate tests folder is standard practice. So I had both files moved into tests/. That meant adding one line at the top of each file so that `python tests/test_agent.py` and `python tests/test_tools.py` still find the project's modules. I then ran both test files from their new location to check they still passed. I also asked Claude to add docstrings to every test and helper function.
+
+**Moment 3**
+
+- *What I asked for:* When criterion 4 was missed, I asked Claude whether the reason for the "$18" could be tested instead of assumed. I also asked whether the criterion could be changed to accept "$18" as well as "$18.00". Claude said no to that: criteria.md only allows a revision when a criterion cannot be measured, and two decimals can be measured.
+- *What came back:* Claude wrote a throwaway script outside the project. It ran the create_fit_card prompt 10 times with caching off, once as written and once with one added sentence telling the model to write the price exactly as shown. "$18.00" appeared in 2 of 10 cards with the current prompt and 10 of 10 with the sentence. Length did not fix: cards at 280 characters or under went from 0 of 10 to 5 of 10.
+- *What I changed:* I put only the price sentence into tools.py and re-ran the whole eval. Claude had first shown the price and a length rule as one edit. I asked whether to split them, and Claude recommended it so the two results would not be mixed in one run. I agreed and held the length rule back. Criterion 4 went from 1 of 5 to 3 of 5. It is still MISSED, because two cards were over 280 characters, and I reported it that way.
+
+**Moment 4**
+
+- *What I asked for:* Criterion 3 is written in terms of ids: the selected item has to be the item suggest_outfit receives. My first run log only printed titles and prices, so it could not show that. I asked for run_eval.py to show the ids.
+- *What came back:* Claude proposed a small change in run_eval.py: a pass-through stand-in for suggest_outfit that records the item it receives and then calls the real one, put back afterwards, plus three id lines in the log for each try. agent.py is not touched.
+- *What I changed:* I asked to see the edit and have it walked through before it was applied. I also considered comparing titles instead, or loosening the criterion. I decided against it, because the criterion can be measured and the third id is the part that can actually fail. The second run showed lst_007 at all three points on all five tries. The first run log, from before the change, is not used.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -400,7 +413,7 @@ behaved differently afterwards. If the rewire didn't work, say exactly where it
 broke — the error text and the last thing that worked. That earns the point in
 full. -->
 
-In mcp_server.py I registered search_listings with the inputs from the Tool Inventory: description, size and max_price, all optional. In agent.py I replaced the direct search_listings call in run_agent with call_tool("search_listings", {...}) from mcp_client.py, and the trace step is named "search_listings (via MCP)". The swap did not change what the agent gets back. On four queries (two with results, one empty search, one with no description), the MCP call and the direct call returned identical lists.
+In mcp_server.py I registered search_listings with the inputs from the Tool Inventory: description, size and max_price, all optional. In agent.py I replaced the direct search_listings call in run_agent with call_tool("search_listings", {...}) from mcp_client.py, and the trace step is named "search_listings (via MCP)". The swap did not change what the agent gets back. On four queries (two with results, one empty search, one with no description), the MCP call and the direct call returned identical lists. Every MCP call starts the server and stops it again (noted in mcp_client.py), so each search is slower than the old direct call. I did not time it. The only difference I found is that cost; the results themselves were identical on the four test queries, and both run logs were produced through the MCP call.
 
 ---
 
@@ -444,7 +457,15 @@ Run from results/run_2026-10-18_0204_after.md with `python run_eval.py --label a
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
 
+**Criterion 4: the fit card has the price, platform and item in 280 characters. Still MISSED (3 of 5, target 4 of 5).**
 
+The price format is fixed. "$18.00" appeared in 5 of 5 cards in Run Log - After. What is left is length: tries 3 and 4 came out at 341 and 330 characters, over the limit. The create_fit_card prompt still has no character limit, so this is the half of the diagnosis I have not acted on.
+
+**What I would do:** add one sentence to the create_fit_card prompt asking for a caption under 280 characters, then run the full test again. I have not tried it, so I do not know that it works. My earlier 10-try check only tested the price sentence, and it left 5 of 10 cards over 280. A model can ignore a character count written in a prompt. If the sentence does not hold at 4 of 5, the next step would be a check in the code, not the prompt, that catches an over-length card and asks the model again. I have not built or tested that either.
+
+**Why I stopped here:** the direction was one change, measured on its own. I picked the price sentence because my separate check had already shown it worked. Claude suggested keeping the length rule as a second change, so the two results would not be mixed in one run, and I agreed. This was not a time problem.
+
+Criteria 1, 2, 3 and 5 were MET in both runs, so there is nothing missed to report for them.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
