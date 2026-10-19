@@ -501,6 +501,12 @@ These are optional, for extra credit. I am adding three:
    run log will show the retry and say which constraint was
    dropped.
 
+**Feature 3 was not built.** I decided to skip the retry
+without the size filter. It was only worth 1 point, and I did
+not have the time to finish it. agent.py still stops on an
+empty search and gives the existing message, and no run log
+shows a retry. Features 1 and 2 are described below.
+
 ### Feature 1: a second tool over MCP
 
 **The tool:** suggest_outfit, registered in mcp_server.py next to
