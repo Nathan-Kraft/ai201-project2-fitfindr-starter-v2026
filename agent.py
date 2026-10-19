@@ -17,9 +17,9 @@ import re
 
 import config
 import trace
-from tools import suggest_outfit, create_fit_card
+from tools import create_fit_card
 from generate import ModelUnavailable
-from mcp_client import call_tool
+from mcp_client import MCPError, call_tool
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -91,6 +91,25 @@ def _no_results_message(parsed: dict) -> str:
     return "No listings matched. Try using different or fewer keywords."
 
 
+# -- suggest_outfit, over MCP ------------------------------------------
+
+def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
+    """
+    Get outfit suggestions from the MCP server's suggest_outfit.
+
+    The server runs the model, so a model failure comes back as
+    MCPError. It is re-raised as ModelUnavailable so the handler
+    in run_agent still catches it.
+    """
+    try:
+        return call_tool("suggest_outfit", {
+            "new_item": new_item,
+            "wardrobe": wardrobe,
+        })
+    except MCPError as exc:
+        raise ModelUnavailable(str(exc)) from exc
+
+
 # ── planning loop ─────────────────────────────────────────────────────────────
 
 
@@ -157,7 +176,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         # Suggest outfits for the chosen item, from the user's wardrobe.
         session["outfit_suggestion"] = suggest_outfit(
             session["selected_item"], session["wardrobe"])
-        trace.step("suggest_outfit", inputs=session["selected_item"],
+        trace.step("suggest_outfit (via MCP)", inputs=session["selected_item"],
                    returned=session["outfit_suggestion"])
 
         # Write the caption from the outfit and the chosen item.

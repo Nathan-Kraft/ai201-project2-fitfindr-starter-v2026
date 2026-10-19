@@ -486,6 +486,89 @@ These are optional, for extra credit. I am adding three:
    run log will show the retry and say which constraint was
    dropped.
 
+### Feature 1: a second tool over MCP
+
+**The tool:** suggest_outfit, registered in mcp_server.py next to
+search_listings. It takes two required inputs, new_item and
+wardrobe (both objects), and returns a string. Its description
+names the keys each input needs and says that an empty or missing
+wardrobe gets general styling advice, not an error. I did not move
+create_fit_card, because it is the criterion 4 tool and moving it
+would have mixed this feature with feature 2.
+
+**How the agent reaches it:** agent.py has a function named
+suggest_outfit that calls call_tool("suggest_outfit", {...}).
+run_agent calls it as before, and the trace step is now named
+"suggest_outfit (via MCP)". I kept the function name so
+run_eval.py, which swaps agent.suggest_outfit to record the item
+it receives for criterion 3, kept working.
+
+**A run through the MCP path**
+
+```
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+      →    10 match(es)
+[3] select_item
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+[4] suggest_outfit (via MCP)
+      in:  Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      out: Outfit 1: - Y2K Baby Tee — Butterfly Print - Baggy straight-leg jeans, dark wash - Chunky white sneakers - Bla…
+[5] create_fit_card
+      in:  Outfit 1: - Y2K Baby Tee — Butterfly Print - Baggy straight-leg jeans, dark wash - Chunky white sneakers - Bla…
+      out: Found the ultimate Y2K butterfly baby tee and I am never taking it off. Grabbed this little gem for $18.00 and…
+```
+
+Real output from `python app.py ask 'vintage graphic tee under $30'
+--trace`. It is the same query as the Happy path above, so the only
+difference is the step 4 label. Steps 2 and 4 both go through MCP.
+The long dashes and the arrow come from the program. The program
+printed "0 model calls this session, 1 served from cache", so the
+caption text was not generated fresh. The outfit step runs in the
+server process, which that count does not cover, so I do not know
+whether its text was fresh. The routing is not in doubt: in a
+separate run I wrapped call_tool in a temporary check, and it
+received exactly two calls, search_listings (returned a list) and
+suggest_outfit (returned a string), with the example wardrobe and
+again with the empty one.
+
+**What behaved differently**
+
+1. A model failure now arrives as a different error. The model
+   runs in the server process, so a failure there reaches the
+   agent as MCPError, not ModelUnavailable, and the handler in
+   run_agent would not have caught it. The wrapper in agent.py
+   catches MCPError and raises ModelUnavailable with the same
+   text, so the user still sees the usual "The model couldn't be
+   reached" message. Any MCPError on that call gets this message,
+   including a server that fails to start. The original text is
+   shown after "What the service said".
+2. The error text was lost on the way. A fake GEMINI_API_KEY set in
+   the shell, as in Milestone 2, did not make the server's model
+   call fail, so I used a temporary script outside the project
+   that gave the server a fake key directly. The server's error
+   was "The model rejected your API key. Check GEMINI_API_KEY in
+   your .env file...", but the agent printed "Couldn't call
+   'suggest_outfit' over MCP: unhandled errors in a TaskGroup (1
+   sub-exception)" and "Check that mcp_server.py runs on its own
+   first", which names the wrong problem. The cause: the MCPError
+   is raised inside the connection, anyio wraps it in an exception
+   group, and call_tool only passed a bare MCPError through. I
+   added a helper, `_find_mcp_error`, to `mcp_client.py`, and
+   call_tool now re-raises the MCPError it finds in the group.
+   After the fix the agent prints "What the service said: The tool
+   'suggest_outfit' returned an error: Error executing tool
+   suggest_outfit: The model rejected your API key. Check
+   GEMINI_API_KEY in your .env file, or create a fresh key at
+   aistudio.google.com." That is longer than the Milestone 2
+   wording because MCP adds its prefix. mcp_client.py came with
+   the starter, so this is a change to given code. I checked it
+   with the temporary script, before and after the fix.
+
 <!-- ═════════════════════════════════════════════════════════════════════
 
      SUBMISSION CHECKLIST — unit 3

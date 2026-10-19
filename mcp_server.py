@@ -60,6 +60,7 @@ works with a direct call, and **a documented failure earns the point in full.**
 from mcp.server.fastmcp import FastMCP
 
 from tools import search_listings as _search_listings_impl  # noqa: F401 — you'll use this below
+from tools import suggest_outfit as _suggest_outfit_impl
 
 # log_level="WARNING" keeps the server from printing an INFO line for every
 # request. Without it your terminal fills with "Processing request of type
@@ -102,6 +103,32 @@ def search_listings(
 # are not optional here. `description: str` becomes a required string;
 # `max_price: float | None = None` becomes an optional number. Getting these
 # wrong is the most common reason a call is rejected.
+
+
+@mcp.tool()
+def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
+    """
+    Suggests one or two outfits built around a secondhand item,
+    using the pieces in the user's wardrobe. Calls a language
+    model, so it is slower than search_listings and can fail if
+    the model is unavailable (the call then returns an error).
+
+    new_item: one listing dict, as returned by search_listings.
+    Needs these keys: title, category, size, colors (list of
+    str), style_tags (list of str) and description.
+
+    wardrobe: a dict with an "items" key holding a list of
+    pieces. Each piece needs name, category, colors (list of
+    str) and style_tags (list of str); notes is optional. The
+    list may be empty or missing.
+
+    Returns a non-empty string of plain-text outfits. With a
+    wardrobe that has items, each outfit names the new item and
+    at least one piece from the wardrobe. With an empty wardrobe
+    it returns general styling advice and does not claim the
+    user owns anything. An empty wardrobe is not an error.
+    """
+    return _suggest_outfit_impl(new_item, wardrobe)
 
 
 if __name__ == "__main__":

@@ -156,16 +156,26 @@ class FakeTools:
 def run_with(results, query):
     """Run run_agent with the three tools in agent.py swapped for FakeTools, then restore the real ones.
 
+    Search goes through agent.call_tool (the MCP call), so that
+    is what gets swapped for the fake search.
+
     Returns (session, fake) so a test can check both the session and the calls.
     """
     fake = FakeTools(results)
-    saved = (agent.search_listings, agent.suggest_outfit, agent.create_fit_card)
-    agent.search_listings, agent.suggest_outfit, agent.create_fit_card = (
-        fake.search, fake.outfit, fake.card)
+
+    def fake_call_tool(name, arguments):
+        assert name == "search_listings"
+        return fake.search(**arguments)
+
+    saved = (agent.call_tool, agent.suggest_outfit,
+             agent.create_fit_card)
+    agent.call_tool, agent.suggest_outfit, agent.create_fit_card = (
+        fake_call_tool, fake.outfit, fake.card)
     try:
         session = run_agent(query, get_example_wardrobe())
     finally:
-        agent.search_listings, agent.suggest_outfit, agent.create_fit_card = saved
+        agent.call_tool, agent.suggest_outfit, agent.create_fit_card = (
+            saved)
     return session, fake
 
 

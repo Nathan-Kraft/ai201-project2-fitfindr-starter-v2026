@@ -38,6 +38,21 @@ class MCPError(RuntimeError):
     """The server couldn't be reached, or it refused the call."""
 
 
+def _find_mcp_error(exc):
+    """Return the first MCPError inside exc, or None.
+
+    anyio wraps an error raised inside the connection in an
+    exception group, so look through the groups as well.
+    """
+    if isinstance(exc, MCPError):
+        return exc
+    for sub in getattr(exc, "exceptions", ()):
+        found = _find_mcp_error(sub)
+        if found is not None:
+            return found
+    return None
+
+
 def call_tool(name: str, arguments: dict):
     """
     Call one tool on your MCP server and return what it returns.
@@ -60,6 +75,9 @@ def call_tool(name: str, arguments: dict):
     except MCPError:
         raise
     except Exception as exc:  # noqa: BLE001 — re-raised readably below
+        inner = _find_mcp_error(exc)
+        if inner is not None:
+            raise inner from exc
         raise MCPError(
             f"Couldn't call '{name}' over MCP: {exc}\n"
             f"Check that mcp_server.py runs on its own first:\n"
