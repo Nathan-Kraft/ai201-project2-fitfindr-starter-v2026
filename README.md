@@ -467,6 +467,25 @@ The price format is fixed. "$18.00" appeared in 5 of 5 cards in Run Log - After.
 
 Criteria 1, 2, 3 and 5 were MET in both runs, so there is nothing missed to report for them.
 
+---
+
+## Stretch Features
+
+These are optional, for extra credit. I am adding three:
+
+1. A second tool exposed over MCP next to search_listings.
+   The tool is suggest_outfit. It is registered in
+   mcp_server.py, and agent.py now reaches it through
+   call_tool.
+2. A second change from the diagnosis: a length rule for the
+   create_fit_card prompt ("Keep the whole caption under 280
+   characters."). It gets its own run and a third run log in
+   the same table format, and a plain statement of whether it
+   helped, even if it made things worse.
+3. An empty search retries once without the size filter. The
+   run log will show the retry and say which constraint was
+   dropped.
+
 <!-- ═════════════════════════════════════════════════════════════════════
 
      SUBMISSION CHECKLIST — unit 3
