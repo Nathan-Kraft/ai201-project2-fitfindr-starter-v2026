@@ -258,7 +258,8 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
         "Write two to four sentences that read like a real post, not a product "
         "description. Mention the item, its price and its platform once each, and be "
         "specific about the vibe. Write the price exactly as shown above, with a "
-        "dollar sign and two decimals. Reply with the caption only."
+        "dollar sign and two decimals. Keep the whole caption under 280 "
+        "characters. Reply with the caption only."
     )
     system = (
         "You write casual, specific thrift-haul captions. Never reply with an "

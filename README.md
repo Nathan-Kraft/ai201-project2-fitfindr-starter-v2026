@@ -457,15 +457,30 @@ Run from results/run_2026-10-18_0204_after.md with `python run_eval.py --label a
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
 
-**Criterion 4: the fit card has the price, platform and item in 280 characters. Still MISSED (3 of 5, target 4 of 5).**
+**Criterion 4: the fit card has the price, platform and item in 280
+characters. MISSED in Run Log - After (3 of 5). MET in Run Log -
+Length (5 of 5, target 4 of 5).**
 
-The price format is fixed. "$18.00" appeared in 5 of 5 cards in Run Log - After. What is left is length: tries 3 and 4 came out at 341 and 330 characters, over the limit. The create_fit_card prompt still has no character limit, so this is the half of the diagnosis I have not acted on.
+The length rule from Feature 2 fixed the miss in one run: the five
+cards in Run Log - Length were 194 to 223 characters. What is left
+is how much one run proves.
 
-**What I would do:** add one sentence to the create_fit_card prompt asking for a caption under 280 characters, then run the full test again. I have not tried it, so I do not know that it works. My earlier 10-try check only tested the price sentence, and it left 5 of 10 cards over 280. A model can ignore a character count written in a prompt. If the sentence does not hold at 4 of 5, the next step would be a check in the code, not the prompt, that catches an over-length card and asks the model again. I have not built or tested that either.
+**What I would do:** run the full test again with more than five
+tries, for example `python run_eval.py --tries 10 --label length10`.
+A model can ignore a character count written in a prompt, and my
+earlier 10-try check left 5 of 10 cards over 280 before this
+sentence existed, so five clean tries could be luck. If a longer run
+fell below the target, the next step would be a check in the code,
+not the prompt, that catches an over-length card and asks the model
+again. I have not built or tested that.
 
-**Why I stopped here:** the direction was one change, measured on its own. I picked the price sentence because my separate check had already shown it worked. Claude suggested keeping the length rule as a second change, so the two results would not be mixed in one run, and I agreed. This was not a time problem.
+**Why I stopped here:** The criteria are written out of five tries,
+and Feature 2 asked for one second change with a third run log. It
+has both, and the target was met. I have not run more than five
+tries.
 
-Criteria 1, 2, 3 and 5 were MET in both runs, so there is nothing missed to report for them.
+Criteria 1, 2, 3 and 5 were MET in all three runs, so there is
+nothing missed to report for them.
 
 ---
 
@@ -568,6 +583,64 @@ again with the empty one.
    wording because MCP adds its prefix. mcp_client.py came with
    the starter, so this is a change to given code. I checked it
    with the temporary script, before and after the fix.
+
+### Feature 2: a length rule for the create_fit_card prompt
+
+**What I changed:** One sentence added to the prompt in
+tools.py::create_fit_card, after the price sentence: "Keep the
+whole caption under 280 characters." Nothing else in the prompt
+changed. The system prompt, the temperature and criteria.md are the
+same as in Run Log - After.
+
+**Which failure it was meant to fix:** The length half of the
+criterion 4 miss. In Run Log - After the price format was fixed,
+and the only failing tries, 3 and 4, were over 280 characters (341
+and 330). The prompt still said nothing about length. My earlier
+10-try check, with only the price sentence, left 5 of 10 cards over
+280. I held this sentence back so each change would be measured on
+its own, and it was declared in the README before I built it.
+
+#### Run Log - Length
+
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The selected item is the item suggest_outfit receives | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. The fit card has the price, platform and item in 280 characters | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. The parser returns exactly description, size and max_price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+Criterion 2 row: same as in the earlier logs. All four queries
+passed in all five tries, 20 of 20.
+
+Run from results/run_2026-10-18_2300_length.md with
+`python run_eval.py --label length`, caching off, temperature 0.9.
+
+**What else was different in this run:** Two things changed
+between Run Log - After and this run besides the sentence. First,
+suggest_outfit now goes through MCP (Feature 1). Second, the outfit
+step now runs in the MCP server, which does not see the eval's
+cache-off setting. With the setting at its default, two identical
+suggest_outfit calls returned the same text, and the second was
+faster. To keep five tries as five real answers, I set
+AI201_CACHE=0 in my .env for this run. I then checked that two calls
+wrote no cache files and returned different text. The outfits
+differed from try to try in this run. The .env line is local and is
+not in the repository.
+
+**Did it help, and how do I know:** It helped, and criterion 4 now
+meets its target. It went from 3 of 5 in Run Log - After (and 1 of 5
+in Run Log - Before) to 5 of 5, so it is MET. The five fit cards
+were 194, 203, 223, 202 and 219 characters, each with "$18.00",
+"depop" and a word from the title. All 25 fit cards in the run, from
+the five queries that produce one, were 262 characters or shorter,
+against 341 and 330 for the two failing tries before. The other four
+criteria did not move: they were MET in all three runs. Two limits.
+This is one run of five tries, so 5 of 5 may be partly luck. The run
+also differed in the two ways above, and I did not test them one at
+a time. I expect the MCP path and the cache setting to have no
+effect on caption length, because the caption step is unchanged, but
+I did not measure it.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
